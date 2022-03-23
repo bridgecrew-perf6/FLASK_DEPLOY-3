@@ -2,7 +2,7 @@ name: CI-CD-FLASK-INTO-AWS
 env:
     EB_PACKAGE_S3_BUCKET  : "flask.app01"
     EB_APPLICATION_NAME   : "MyFlask01" 
-    EB_ENVIRONMENT_NAME   : "MyFlask01-env-1"
+    EB_ENVIRONMENT_NAME   : "MyFlask01-env"
     DEPLOY_PACKAGE_NAME   : "MyFlask01_${{ github.sha }}.zip" 
     AWS_REGION_NAME       : "us-east-1"
 on:
