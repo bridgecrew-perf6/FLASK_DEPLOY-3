@@ -1,0 +1,61 @@
+name: CI-CD-FLASK-INTO-AWS
+env:
+    EB_PACKAGE_S3_BUCKET  : "flask.app01"
+    EB_APPLICATION_NAME   : "MyFlask01" 
+    EB_ENVIRONMENT_NAME   : "MyFlask01-env-1"
+    DEPLOY_PACKAGE_NAME   : "MyFlask01_${{ github.sha }}.zip" 
+    AWS_REGION_NAME       : "us-east-1"
+on:
+  push:
+    branches: 
+    - master
+
+
+jobs:
+  job_ci_part:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Git clone our repo into docker container
+        uses: actions/checkout@v1
+
+      - name: Create zip deployment package name
+        run: zip -r ${{ env.DEPLOY_PACKAGE_NAME }} ./ -x *.git*
+
+      - name: Configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+           aws-access-key-id      : ${{ secrets.MY_AWS_SECRET_ACCESS_ID }}
+           aws-secret-access-key  : ${{ secrets.MY_AWS_SECRET_ACCESS_KEY }}
+           aws-region             : ${{ env.AWS_REGION_NAME }}
+
+      - name: Copy file into s3 bucket
+        run: aws s3 cp ${{ env.DEPLOY_PACKAGE_NAME }} s3://${{ env.EB_PACKAGE_S3_BUCKET }}
+
+
+  job_cd_part:
+    runs-on: ubuntu-latest
+    needs: [job_ci_part]
+
+    steps:
+      - name: Configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+           aws-access-key-id      : ${{ secrets.MY_AWS_SECRET_ACCESS_ID }}
+           aws-secret-access-key  : ${{ secrets.MY_AWS_SECRET_ACCESS_KEY }}
+           aws-region             : ${{ env.AWS_REGION_NAME }}
+
+      - name: create new AWS ElasticBeanStalk Application
+        run : |
+           aws elasticbeanstalk create-application-version \
+           --application-name ${{ env.EB_APPLICATION_NAME }} \
+           --source-bundle S3Bucket="${{ env.EB_PACKAGE_S3_BUCKET}}",S3Key="${{ env.DEPLOY_PACKAGE_NAME }}" \
+           --version-label "Ver-${{ github.sha }}" \
+           --description "CommitSHA-${{ github.sha }}"
+
+      - name: Deploy new AWS ElasticBeanStalk Application
+        run : 
+           aws elasticbeanstalk update-environment --environment-name ${{ env.EB_ENVIRONMENT_NAME }} --version-label "Ver-${{ github.sha }}"
+
+
+        
